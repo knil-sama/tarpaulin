@@ -15,10 +15,13 @@ fn incorrect_manifest_path() {
 fn simple_project_coverage() {
     let mut config = Config::default();
     config.manifest = env::current_dir().unwrap();
-    config.manifest.push("tests");
+    config.manifest.pop();
+    config.manifest.push(file!());
+    config.manifest.pop();
     config.manifest.push("data");
     config.manifest.push("simple_project");
     config.manifest.push("Cargo.toml");
+    println!("{}", config.manifest.display());
     let res = launch_tarpaulin(&config).unwrap();
     
     let unused_hits = res.iter()
