@@ -7,13 +7,13 @@ use nix::unistd::*;
 use nix::sys::ptrace::ptrace::*;
 use nix::sys::signal;
 use nix::sys::wait::*;
-use procinfo::pid::stat;
+use procinfo::pid::{stat, status};
 use nix::libc::pid_t;
 
 
 fn check_parents(parents: &HashSet<Pid>, current: Pid) -> bool {
     if let Ok(stats) = stat(pid_t::from(current)) {
-        parents.contains(&Pid::from_raw(stats.ppid))
+        parents.contains(&Pid::from_raw(stats.ppid))// || stats.command == "simple_project_";
     } else {
         false
     }
@@ -115,31 +115,52 @@ pub fn run_function(pid: Pid,
                 continue_exec(child, s)?;
             },
             Ok(WaitStatus::PtraceEvent(child, signal::SIGTRAP, PTRACE_EVENT_CLONE)) => {
-                if get_event_data(child).is_ok() {
+                if check_parents(&ignored_parents, child) {
+                    continue_exec(child, Some(signal::SIGTRAP))?;
+                } else if get_event_data(child).is_ok() {
+                    println!("Normal continue");
                     thread_count += 1;
                     continue_exec(child, None)?;
-                }
+                }                 
             },
             Ok(WaitStatus::PtraceEvent(child, signal::SIGTRAP, PTRACE_EVENT_FORK)) => {
-                continue_exec(child, None)?;
+                let sig = if check_parents(&ignored_parents, child) {
+                    Some(signal::SIGTRAP)
+                } else {
+                    None
+                };
+                continue_exec(child, sig)?;
             },
             Ok(WaitStatus::PtraceEvent(child, signal::SIGTRAP, PTRACE_EVENT_VFORK)) => {
-                continue_exec(child, None)?;
+                let sig = if check_parents(&ignored_parents, child) {
+                    Some(signal::SIGTRAP)
+                } else {
+                    None
+                };
+                continue_exec(child, sig)?;
             },
             Ok(WaitStatus::PtraceEvent(child, signal::SIGTRAP, PTRACE_EVENT_EXEC)) => {
-                if check_parents(&ignored_parents, child) {
-                    continue_exec(child, Some(signal::SIGTRAP))?; // <- this right?
-                } else {
-                    ignored_parents.insert(child);
-                    detach_child(child)?;
-                }
+                let _ = check_parents(&ignored_parents, child);
+                ignored_parents.insert(child);
+                detach_child(child)?;
+                   // continue_exec(child, Some(signal::SIGTRAP))?; // <- this right?
             },
             Ok(WaitStatus::PtraceEvent(child, signal::SIGTRAP, PTRACE_EVENT_EXIT)) => {
-                thread_count -= 1;
-                continue_exec(child, None)?;
+                let sig = if check_parents(&ignored_parents, child) {
+                    Some(signal::SIGTRAP)
+                } else {
+                    thread_count -= 1;
+                    None
+                };
+                continue_exec(child, sig)?;
             },
             Ok(WaitStatus::Signaled(child, signal::SIGTRAP, true)) => {
-                continue_exec(child, None)?;
+                let sig = if check_parents(&ignored_parents, child) {
+                    Some(signal::SIGTRAP)
+                } else {
+                    None
+                };
+                continue_exec(child, sig)?;
             },
             Ok(s) => {
                 println!("Unexpected stop {:?}", s);
