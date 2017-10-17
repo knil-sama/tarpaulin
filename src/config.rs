@@ -12,7 +12,8 @@ arg_enum!{
         Json,
         Toml,
         Stdout,
-        Xml
+        Xml,
+        Html
     }
 }
 
