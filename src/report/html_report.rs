@@ -1,7 +1,6 @@
 use std::fs::File;
 use std::path::Path;
 use std::io::prelude::*;
-use std::collections::HashSet;
 use horrorshow::prelude::*;
 use horrorshow::helper::doctype;
 use horrorshow::RenderBox;
@@ -22,8 +21,8 @@ fn get_entries(res:&[TracerData]) -> Vec<CoverageRow> {
 }
 
 
-fn render_results(res: &[TracerData]) -> Box<RenderBox> {
-    if res.is_empty() {
+fn render_results<'a>(results: &'a[CoverageRow]) -> Box<RenderBox + 'a> {
+    if results.is_empty() {
         box_html! {
             p {
                 :"No coverage results to show"
@@ -40,9 +39,9 @@ fn render_results(res: &[TracerData]) -> Box<RenderBox> {
                     }
                 }
                 tbody {
-                    @ for r in get_entries(res){
+                    @ for r in results.iter(){
                         tr {
-                            td{:r.path.display()}
+                            td{:format!("{}", r.path.to_str().unwrap_or_default())}
                             td{:format!("{}%", r.line_coverage)}
                             td{:format!("{}", r.hit_rate)}
                         }
@@ -54,6 +53,7 @@ fn render_results(res: &[TracerData]) -> Box<RenderBox> {
 }
 
 pub fn export(coverage_data: &[TracerData], config: &Config) {
+    let results = get_entries(coverage_data);
     let report = html! {
         :doctype::HTML;
         html {
@@ -93,7 +93,7 @@ pub fn export(coverage_data: &[TracerData], config: &Config) {
                         :"Coverage Results"
                     }
                     p {
-                        : render_results(coverage_data)
+                        : render_results(&results)
                     }
                 }
             }
