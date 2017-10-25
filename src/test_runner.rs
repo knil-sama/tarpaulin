@@ -1,23 +1,66 @@
 use breakpoint::*;
 use ptrace_control::*;
 use tracer::TracerData;
+use std::convert::From;
+use std::default::Default;
 use std::collections::{HashSet, HashMap};
 use nix::Error as NixErr;
 use nix::unistd::*;
 use nix::sys::ptrace::ptrace::*;
 use nix::sys::signal;
 use nix::sys::wait::*;
-use procinfo::pid::{stat, status};
+use procinfo::pid::{stat, status, Stat, Status};
 use nix::libc::pid_t;
+
+#[derive(Eq, PartialEq, Debug)]
+struct RunState {
+    wait_signal: WaitStatus,
+    child_stats: Option<Stat>,
+    child_status: Option<Status>,
+}
+
+impl Default for RunState {
+    fn default() -> Self {
+        RunState {
+            wait_signal: WaitStatus::StillAlive,
+            child_stats: None,
+            child_status: None,
+        }
+    }
+}
+
+impl From<WaitStatus> for RunState {
+    fn from(wait: WaitStatus) -> Self {
+        let pid = match wait {
+            WaitStatus::Exited(p, _) => pid_t::from(p),
+            WaitStatus::Signaled(p, _, _) => pid_t::from(p),
+            WaitStatus::Stopped(p, _) => pid_t::from(p),
+            WaitStatus::Continued(p) => pid_t::from(p),
+            _ => 0,
+        };
+        RunState {
+            child_stats: stat(pid).ok(),
+            child_status: status(pid).ok(),
+            wait_signal: wait
+        }
+    }
+}
+
+
+fn wait_state() -> Result<RunState, NixErr> {
+    let step = waitpid(Pid::from_raw(-1), Some(__WALL))?;
+    Ok(RunState::from(step))
+}
 
 
 fn check_parents(parents: &HashSet<Pid>, current: Pid) -> bool {
     if let Ok(stats) = stat(pid_t::from(current)) {
-        parents.contains(&Pid::from_raw(stats.ppid))// || stats.command == "simple_project_";
+        parents.contains(&Pid::from_raw(stats.ppid)) 
     } else {
         false
     }
 }
+
 
 fn handle_trap(pid: Pid, 
                no_count:bool, 
@@ -54,6 +97,7 @@ fn handle_trap(pid: Pid,
     Ok(())
 }
 
+
 /// Starts running a test. Child must have signalled STOP or SIGNALED to show 
 /// the parent it is not executing or it will be killed.
 pub fn run_function(pid: Pid,
@@ -67,10 +111,11 @@ pub fn run_function(pid: Pid,
     let mut unwarned = !no_count;
     // Start the function running. 
     continue_exec(pid, None)?;
+    let mut ignored_parents: HashSet<Pid> = HashSet::new();
     loop {
-        let mut ignored_parents: HashSet<Pid> = HashSet::new();
-        match waitpid(Pid::from_raw(-1), Some(__WALL)) {
-            Ok(WaitStatus::Exited(child, sig)) => {
+        let step = wait_state()?;
+        match step.wait_signal {
+            WaitStatus::Exited(child, sig) => {
                 for (_, ref mut value) in breakpoints.iter_mut() {
                     value.thread_killed(child); 
                 }
@@ -84,7 +129,7 @@ pub fn run_function(pid: Pid,
                     let _ =continue_exec(pid, None);
                 }
             },
-            Ok(WaitStatus::Stopped(child, signal::SIGTRAP)) => {
+            WaitStatus::Stopped(child, signal::SIGTRAP) => {
                 if check_parents(&ignored_parents, child) {
                     continue_exec(child, Some(signal::SIGTRAP))?;
                 } else {
@@ -92,29 +137,30 @@ pub fn run_function(pid: Pid,
                                 traces, breakpoints)?;
                 }
             },
-            Ok(WaitStatus::Stopped(child, signal::SIGSTOP)) => {
+            WaitStatus::Stopped(child, signal::SIGSTOP) => {
                 if check_parents(&ignored_parents, child) {
                     continue_exec(child, Some(signal::SIGSTOP))?;
                 } else {
                     continue_exec(child, None)?;
                 }
             },
-            Ok(WaitStatus::Stopped(child, signal::SIGSEGV)) => {
+            WaitStatus::Stopped(child, signal::SIGSEGV) => {
                 if check_parents(&ignored_parents, child) {
                     continue_exec(child, Some(signal::SIGSEGV))?;
                 } else {
                     break;
                 }
             },
-            Ok(WaitStatus::Stopped(child, sig)) => {
+            WaitStatus::Stopped(child, sig) => {
                 let s = if forward_signals | check_parents(&ignored_parents, child) {
+                    println!("Forwarding");
                     Some(sig)
                 } else {
                     None
                 };
                 continue_exec(child, s)?;
             },
-            Ok(WaitStatus::PtraceEvent(child, signal::SIGTRAP, PTRACE_EVENT_CLONE)) => {
+            WaitStatus::PtraceEvent(child, signal::SIGTRAP, PTRACE_EVENT_CLONE) => {
                 if check_parents(&ignored_parents, child) {
                     continue_exec(child, Some(signal::SIGTRAP))?;
                 } else if get_event_data(child).is_ok() {
@@ -123,7 +169,7 @@ pub fn run_function(pid: Pid,
                     continue_exec(child, None)?;
                 }                 
             },
-            Ok(WaitStatus::PtraceEvent(child, signal::SIGTRAP, PTRACE_EVENT_FORK)) => {
+            WaitStatus::PtraceEvent(child, signal::SIGTRAP, PTRACE_EVENT_FORK) => {
                 let sig = if check_parents(&ignored_parents, child) {
                     Some(signal::SIGTRAP)
                 } else {
@@ -131,7 +177,7 @@ pub fn run_function(pid: Pid,
                 };
                 continue_exec(child, sig)?;
             },
-            Ok(WaitStatus::PtraceEvent(child, signal::SIGTRAP, PTRACE_EVENT_VFORK)) => {
+            WaitStatus::PtraceEvent(child, signal::SIGTRAP, PTRACE_EVENT_VFORK) => {
                 let sig = if check_parents(&ignored_parents, child) {
                     Some(signal::SIGTRAP)
                 } else {
@@ -139,13 +185,13 @@ pub fn run_function(pid: Pid,
                 };
                 continue_exec(child, sig)?;
             },
-            Ok(WaitStatus::PtraceEvent(child, signal::SIGTRAP, PTRACE_EVENT_EXEC)) => {
-                let _ = check_parents(&ignored_parents, child);
+            WaitStatus::PtraceEvent(child, signal::SIGTRAP, PTRACE_EVENT_EXEC) => {
+                println!("Exec event {:?}", get_event_data(child));
                 ignored_parents.insert(child);
                 detach_child(child)?;
                    // continue_exec(child, Some(signal::SIGTRAP))?; // <- this right?
             },
-            Ok(WaitStatus::PtraceEvent(child, signal::SIGTRAP, PTRACE_EVENT_EXIT)) => {
+            WaitStatus::PtraceEvent(child, signal::SIGTRAP, PTRACE_EVENT_EXIT) => {
                 let sig = if check_parents(&ignored_parents, child) {
                     Some(signal::SIGTRAP)
                 } else {
@@ -154,7 +200,7 @@ pub fn run_function(pid: Pid,
                 };
                 continue_exec(child, sig)?;
             },
-            Ok(WaitStatus::Signaled(child, signal::SIGTRAP, true)) => {
+            WaitStatus::Signaled(child, signal::SIGTRAP, true) => {
                 let sig = if check_parents(&ignored_parents, child) {
                     Some(signal::SIGTRAP)
                 } else {
@@ -162,12 +208,9 @@ pub fn run_function(pid: Pid,
                 };
                 continue_exec(child, sig)?;
             },
-            Ok(s) => {
+            s => {
                 println!("Unexpected stop {:?}", s);
                 break;
-            },
-            Err(e) => {
-                return Err(e)
             },
         }
     }
