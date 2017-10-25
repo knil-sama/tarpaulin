@@ -54,11 +54,7 @@ fn wait_state() -> Result<RunState, NixErr> {
 
 
 fn check_parents(parents: &HashSet<Pid>, current: Pid) -> bool {
-    if let Ok(stats) = stat(pid_t::from(current)) {
-        parents.contains(&Pid::from_raw(stats.ppid)) 
-    } else {
-        false
-    }
+    parents.contains(&Pid::from_raw(0)) 
 }
 
 
@@ -164,7 +160,6 @@ pub fn run_function(pid: Pid,
                 if check_parents(&ignored_parents, child) {
                     continue_exec(child, Some(signal::SIGTRAP))?;
                 } else if get_event_data(child).is_ok() {
-                    println!("Normal continue");
                     thread_count += 1;
                     continue_exec(child, None)?;
                 }                 
