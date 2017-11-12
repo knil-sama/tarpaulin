@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,shrink-to-fit=no">
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css" integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.8.1/themes/prism.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.8.1/plugins/line-numbers/prism-line-numbers.min.css">
+    <link rel="stylesheet" href"https://cdnjs.cloudflare.com/ajax/libs/prism/1.8.1/plugins/line-highlight/prism-line-highlight.min.css">
+</head>
+<body>
+    <!-- Heading -->
+    <section class="jumbotron">
+        <div class="container">
+            <h1 class="display-4">Tarpaulin Coverage Report</h1>
+            <p class="lead">Generated 2017-10-18 22:29</p>
+        </div>
+    </section>
+
+    <!-- Summary -->
+    <section class="container pb-4">
+        <div class="row justify-content-between">
+            <div class="col">
+                <h2 class="display-5">Summary</h2>
+            </div>
+            <div class="col-3">
+                <button class="btn btn-link float-right"
+                    type="button"
+                    data-toggle="collapse"
+                    data-target=".multi-collapse"
+                    aria-expanded="false"
+                    aria-controls="dt-summary-ro dd-summary-ro">
+                        Toggle Run Options
+                </button>
+            </div>
+        </div>
+        <hr/>
+        <dl class="row">
+            <dt class="col-2">Project</dt>
+            <dd class="col-10">Simple Project</dd>
+            <dt class="col-2">Manifest</dt>
+            <dd class="col-10">/home/xd009642/code/rust/tarpaulin/tests/data/simple_project/Cargo.toml</dd>
+            <dt id="dt-summary-ro" class="col-2 collapse multi-collapse">Run Options</dt>
+            <dd id="dd-summary-ro" class="col-10 collapse multi-collapse">Foo</dd>
+        </dl>
+    </section>
+
+    <!-- Modules -->
+    <section class="container pb-4">
+        <div class="row">
+            <div class="col">
+                <h2 class="display-5">Source Tree</h2>
+            </div>
+        </div>
+        <hr>
+        <div id="source-tree" class="row">
+            <nav class="col st-path" role="navigation" aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                </ol>
+            </nav>
+            <div class="w-100"></div>
+            <div class="col st-list">
+                <div class="list-group">
+                    <a class="list-group-item list-group-item-action" href="#" data-st-file="mod.rs" data-st-path="simple_project/folder">
+                        <i class="fa fa-file-o pr-3"></i>mod.rs
+                    </a>
+                    <a class="list-group-item list-group-item-action" href="#" data-st-dir="folder" data-st-path="simple_project">
+                        <i class="fa fa-folder-o pr-3"></i>folder
+                    </a>
+                    <a class="list-group-item list-group-item-action" href="#" data-st-file="file.rs" data-st-path="simple_project">
+                        <i class="fa fa-file-o pr-3"></i>file.rs
+                    </a>
+                    <span class="list-group-item disabled" data-st-path="simple_project">
+                        <i class="fa fa-file-o pr-3"></i>Cargo.toml
+                    </span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Coverage Info -->
+    <section class="container pb-4">
+        <div class="row">
+            <div class="col">
+                <h2 class="display-5">Coverage Info</h2>
+            </div>
+        </div>
+        <hr>
+        <div class="row">
+            <div id="cov" class="col">
+                <div data-cov="simple_project">
+                    <p>This is the simple_project directory</p>
+                </div>
+                <div data-cov="simple_project/folder">
+                    <p>This is the simple_project/folder directory</p>
+                </div>
+                <pre class="rounded language-rust line-numbers" data-cov="simple_project/file.rs">
+                    <code class="language-rust">
+                        #![feature(proc_macros)]
+
+                        extern crate regex;
+                        extern crate chrono;
+
+                        use chrono::time::utc;
+                        use regex as r;
+
+                        
+                        #[derive(PartialEq, Eq, Debug)]
+                        pub struct Point {
+                            pub x: u32,
+                            pub y: u32,
+                        }
+                    </code>
+                </pre>
+                <pre class="rounded language-rust line-numbers" data-cov="simple_project/folder/mod.rs">
+                    <code class="language-rust">
+                        use std::cmp;
+                        use std::ops::Add;
+
+                        enum Option&lt;T&gt; {
+                            None,
+                            Some(T),
+                        }
+                    </code>
+                </pre>
+            </div>
+        </div>
+    </section>
+
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js" integrity="sha384-b/U6ypiBEHpOf/4+1nzFpr53nxSS+GLCkfwBdFNTxtclqqenISfwAzpKaMNFNmj4" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/js/bootstrap.min.js" integrity="sha384-h0AbiXch4ZDo7tp9hKZ4TsHbi047NrKGLO3SEJAg45jXxnGIfYzk4Si90RDIqNm1" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.8.1/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.8.1/components/prism-rust.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.8.1/plugins/line-numbers/prism-line-numbers.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.8.1/plugins/line-highlight/prism-line-highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.8.1/plugins/normalize-whitespace/prism-normalize-whitespace.min.js"></script>
+
+    <script src="source-tree.js"></script>
+</body>
+</html>
+
